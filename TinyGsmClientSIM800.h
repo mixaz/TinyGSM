@@ -309,6 +309,14 @@ public:
     return waitResponse() == 1;
   }
 
+  bool isActive() {
+    sendAT(GF(""));
+    if (waitResponse(200) == 1) {
+      return true;
+    }
+    return false;
+  }
+
   /*
    * Power functions
    */

@@ -289,6 +289,18 @@ public:
     return res;
   }
 
+  String getFirmwareVersion() {
+    sendAT(GF("+CGMR"));
+    String res;
+    if (waitResponse(1000L, res) != 1) {
+      return "";
+    }
+    res.replace(GSM_NL "OK" GSM_NL, "");
+    res.replace(GSM_NL, " ");
+    res.trim();
+    return res;
+  }
+
   bool hasSSL() {
     sendAT(GF("+CIPSSL=?"));
     if (waitResponse(GF(GSM_NL "+CIPSSL:")) != 1) {

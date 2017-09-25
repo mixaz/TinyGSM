@@ -742,6 +742,8 @@ public:
     if(waitResponse() != 1) return false;
     sendAT(GF("+CSDH=1"));
     if(waitResponse() != 1) return false;
+    sendAT(GF("+CSCS=\"GSM\""));
+    if(waitResponse() != 1) return false;
 
     sendAT(GF("+CMGR="), i);
     uint8_t cmgrResponse = waitResponse(GF(GSM_NL "+CMGR:"));
@@ -756,6 +758,8 @@ public:
 
   bool sendSMS(const String& number, const String& text) {
     sendAT(GF("+CMGF=1"));
+    waitResponse();
+    sendAT(GF("+CSCS=\"GSM\""));
     waitResponse();
     sendAT(GF("+CMGS=\""), number, GF("\""));
     if (waitResponse(GF(">")) != 1) {

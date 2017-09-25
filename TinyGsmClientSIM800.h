@@ -744,7 +744,8 @@ public:
     if(waitResponse() != 1) return false;
 
     sendAT(GF("+CMGR="), i);
-    if(waitResponse(GF(GSM_NL "+CMGR:"))) {
+    uint8_t cmgrResponse = waitResponse(GF(GSM_NL "+CMGR:"));
+    if ( cmgrResponse == 1 ) {
       streamSkipUntil('\n');
       msg = stream.readStringUntil('\n');
       return true;

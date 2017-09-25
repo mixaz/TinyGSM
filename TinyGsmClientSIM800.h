@@ -744,6 +744,20 @@ public:
 
     return true;
   }
+String deleteSMSOpt() {
+    sendAT(GF("+CMGD=?"));
+      if (waitResponse() != 1) {
+        return "";
+      }
+      if (waitResponse(10000L, GF(GSM_NL "+CMGD::")) != 1) {
+        return "";
+      }
+        stream.readStringUntil('"');
+        String indexes = stream.readStringUntil('"');
+        stream.readStringUntil(',');
+        String options = stream.readStringUntil('\n');
+        return indexes;
+      }
 
   bool readSMS(uint8_t i, String& msg){
     sendAT(GF("+CMGF=1"));

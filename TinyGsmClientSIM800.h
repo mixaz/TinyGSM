@@ -783,6 +783,38 @@ String deleteSMSOpt() {
     return false;
   }
 
+  bool readAllSMSRaw(String& msg){
+    sendAT(GF("+CMGF=1"));
+    if(waitResponse() != 1) return false;
+    sendAT(GF("+CSDH=1"));
+    if(waitResponse() != 1) return false;
+    // sendAT(GF("+CSCS=\"GSM\""));
+    // if(waitResponse() != 1) return false;
+
+    sendAT(GF("+CMGL=\"ALL\""));
+
+    const unsigned long timeout = 10000L;
+    unsigned long startMillis = millis();
+    bool isTimeout = false;
+    String line;
+    do {
+      line = stream.readStringUntil('\n');
+      line.trim();
+      if ( line != ""  && line != "OK" ) {
+        DBG(">"+line+"<");
+        msg = msg + line + String("\r\n");
+      }
+      isTimeout = (millis() - startMillis) > timeout;
+      delay(0);
+      if ( isTimeout ) {
+        DBG("timeout");
+        break;
+      }
+    } while (line != "OK");
+
+    return (line == "OK");
+  }
+
   bool sendSMS(const String& number, const String& text) {
     sendAT(GF("+CMGF=1"));
     waitResponse();

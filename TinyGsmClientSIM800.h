@@ -811,7 +811,6 @@ String deleteSMSOpt() {
       line = stream.readStringUntil('\n');
       line.trim();
       if ( line != ""  && line != "OK" ) {
-        DBG(">"+line+"<");
         msg = msg + line + String("\r\n");
       }
       isTimeout = (millis() - startMillis) > timeout;

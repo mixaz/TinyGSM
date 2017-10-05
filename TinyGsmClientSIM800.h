@@ -734,7 +734,7 @@ public:
     if(waitResponse(GF(GSM_NL "+CPMS:")) != 1) return -1;
 
     streamSkipUntil(',');
-    uint8_t count = stream.readStringUntil(',').toInt();
+    uint8_t count = stream.readStringUntil(',').toInt() - 1;
     waitResponse();
 
     return count;

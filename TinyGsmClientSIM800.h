@@ -754,7 +754,7 @@ public:
     sendAT(GF("+CMGF=1"));
     if(waitResponse() != 1) return false;
 
-    sendAT(GF("CMGD="), i);
+    sendAT(GF("+CMGD="), i);
     if(waitResponse() != 1) return false;
 
     return true;

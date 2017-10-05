@@ -351,6 +351,16 @@ public:
     return true;
   }
 
+  void getBluetoothStatus(unsigned long timeout = 10000L) {
+    for (unsigned long start = millis(); millis() - start < timeout; ) {
+      sendAT(GF("+BTSTATUS??"));
+      if (waitResponse(GF(GSM_NL "+BTSTATUS:")) != 1) {
+        delay(1000);
+        continue;
+      }
+  }
+}
+
   bool enableBluetooth() {
     uint16_t state;
 
@@ -465,7 +475,7 @@ public:
 
     return true;
   }
-  
+
   /*
    * Generic network functions
    */

@@ -951,6 +951,30 @@ String deleteSMSOpt() {
     return res;
   }
 
+  /*
+   * Clock functions
+   */
+
+  void syncNetworkTime(){
+    sendAT(GF("+COPS=2")); // de register
+    waitResponse();
+    sendAT(GF("+CLTS=1")); // automatic time zone update is enabled
+    waitResponse();
+    sendAT(GF("+COPS=0")); // register to network
+    waitResponse();
+  }
+
+  String getLocalTimestamp() {
+    sendAT(GF("+CCLK?"));
+    if (waitResponse(GF(GSM_NL "+CCLK:")) != 1) {
+      return "";
+    }
+
+    String res = stream.readStringUntil('\n');
+    waitResponse();
+    return res;
+  }
+
 protected:
 
   bool modemConnect(const char* host, uint16_t port, uint8_t mux, bool ssl = false) {

@@ -798,8 +798,8 @@ String deleteSMSOpt() {
     if(waitResponse() != 1) return false;
     sendAT(GF("+CSDH=1"));
     if(waitResponse() != 1) return false;
-    // sendAT(GF("+CSCS=\"GSM\""));
-    // if(waitResponse() != 1) return false;
+    sendAT(GF("+CSCS=\"GSM\""));
+    if(waitResponse() != 1) return false;
 
     sendAT(GF("+CMGL=\"ALL\""));
 

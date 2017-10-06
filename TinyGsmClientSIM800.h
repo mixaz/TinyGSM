@@ -899,6 +899,8 @@ String deleteSMSOpt() {
       waitResponse();
 
       sendAT(GF("+SMTPSEND"));
+      waitResponse();
+
       if (waitResponse(10000L, GF(GSM_NL "+SMTPSEND:")) != 1) {
         return false;
       }

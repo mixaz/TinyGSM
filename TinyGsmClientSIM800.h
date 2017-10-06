@@ -866,6 +866,45 @@ String deleteSMSOpt() {
     return waitResponse(60000L) == 1;
   }
 
+    /*
+     * Email functions
+     */
+
+    boolean sendEmail(
+      const String& smtpServer, const String& username, const String& password,
+      const String& sender, const String& recipient,
+      const String& subject, const String& text) {
+      sendAT(GF("+EMAILCID=1"));
+      waitResponse();
+      sendAT(GF("+EMAILTO=30"));
+      waitResponse();
+      sendAT(GF("+SMTPSRV=\""), smtpServer, GF("\",587"));
+      waitResponse();
+      sendAT(GF("+SMTPAUTH=1,\""), username, GF("\",\""), password, GF("\""));
+      waitResponse();
+      sendAT(GF("+SMTPFROM=\""), sender, GF("\",\""), sender, GF("\""));
+      waitResponse();
+      sendAT(GF("+SMTPRCPT=0,0,\""), recipient, GF("\",\""), recipient, GF("\""));
+      waitResponse();
+      sendAT(GF("+SMTPSUB=\""), subject, GF("\""));
+      waitResponse();
+
+      sendAT(GF("+SMTPBODY="), text.length());
+      if (waitResponse(GF("DOWNLOAD")) != 1) {
+        return false;
+      }
+      stream.print(text);
+      stream.write((char)0x1A);
+      stream.flush();
+      waitResponse();
+
+      sendAT(GF("+SMTPSEND"));
+      if (waitResponse(10000L, GF(GSM_NL "+SMTPSEND:")) != 1) {
+        return false;
+      }
+      String res = stream.readStringUntil('\n');
+      return res=="1";
+    }
 
   /*
    * Location functions

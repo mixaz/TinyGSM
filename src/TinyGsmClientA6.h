@@ -195,8 +195,17 @@ public:
     sendAT(GF("+CMER=3,0,0,2"));
     waitResponse();
 
-    getSimStatus();
-    return true;
+    // PREFERRED SMS STORAGE
+    int nn = 5;
+    while( nn-- ) {
+      sendAT(GF("+CPMS="), GF("\"SM\""), GF(","), GF("\"SM\""), GF(","), GF("\"SM\""));
+      delay(1000);
+      if(waitResponse() == 1) {
+        getSimStatus();
+        return true;
+      }
+    }
+    return false;
   }
 
   void setBaud(unsigned long baud) {
@@ -238,6 +247,26 @@ public:
     res.replace(GSM_NL, " ");
     res.trim();
     return res;
+  }
+
+  String getFirmwareVersion() {
+    sendAT(GF("+CGMR"));
+    String res;
+    if (waitResponse(1000L, res) != 1) {
+      return "";
+    }
+    res.replace(GSM_NL "OK" GSM_NL, "");
+    res.replace(GSM_NL, " ");
+    res.trim();
+    return res;
+  }
+
+  bool isActive() {
+    sendAT(GF(""));
+    if (waitResponse(200) == 1) {
+      return true;
+    }
+    return false;
   }
 
   /*
@@ -550,17 +579,169 @@ public:
     }
   }
 
+  int8_t getSMSInterrupt(void){
+    sendAT(GF("+CFGRI?"));
+    if(waitResponse(GF(GSM_NL "+CFGRI:")) != 1) return -1;
+    return stream.readStringUntil('\n').toInt();
+  }
+
+  bool setSMSInterrupt(uint8_t status){
+    sendAT(GF("+CFGRI="), status);
+    if(waitResponse() != 1) return false;
+    return true;
+  }
+
+  int8_t countSMS(void){
+    sendAT(GF("+CMGF=1"));
+    if(waitResponse() != 1) return -1;
+
+    sendAT(GF("+CPMS?"));
+    if(waitResponse(GF(GSM_NL "+CPMS:")) != 1) return -1;
+
+    streamSkipUntil(',');
+    uint8_t count = stream.readStringUntil(',').toInt() - 1;
+    waitResponse();
+
+    return count;
+  }
+
+  bool deleteSMS(){
+    sendAT(GF("+CMGF=1"));
+    if(waitResponse() != 1) return false;
+
+    sendAT(GF("+CMGDA=\"DEL ALL\""));
+    if(waitResponse() != 1) return false;
+
+    return true;
+  }
+
+  bool deleteSMS(uint8_t i){
+    sendAT(GF("+CMGD="), i);
+    if(waitResponse() != 1) return false;
+    delay(200);
+    DBG("SMS deleted OK");
+    return true;
+  }
+
+  String deleteSMSOpt() {
+    sendAT(GF("+CMGD=?"));
+    if (waitResponse() != 1) {
+      return "";
+    }
+    if (waitResponse(10000L, GF(GSM_NL "+CMGD::")) != 1) {
+      return "";
+    }
+    stream.readStringUntil('"');
+    String indexes = stream.readStringUntil('"');
+    stream.readStringUntil(',');
+    String options = stream.readStringUntil('\n');
+    return indexes;
+  }
+
+  bool readSMS(uint8_t i, String& msg, String& number) {
+    // +CMGR: message_status,address,[address_text],service_center_time_stamp[,address_type,TPDU_first_octet,protocol_identifier,data_coding_scheme,service_center_address,service_center_address_type,sms_message_body_length]<CR><LF>sms_message_body
+    sendAT(GF("+CMGF=1"));
+    if(waitResponse() != 1) return false;
+    sendAT(GF("+CSDH=1"));
+    if(waitResponse() != 1) return false;
+    sendAT(GF("+CSCS=\"GSM\""));
+    if(waitResponse() != 1) return false;
+
+    sendAT(GF("+CMGR="), i);
+    uint8_t cmgrResponse = waitResponse(GF(GSM_NL "+CMGR:"));
+    if ( cmgrResponse == 1 ) {
+      streamSkipUntil(','); // skip status
+      streamSkipUntil('"');
+      number = stream.readStringUntil('"');
+      streamSkipUntil('\n');
+      msg = stream.readStringUntil('\n');
+      return true;
+    }
+
+    return false;
+  }
+
+  bool readAllSMSRaw(String& msg){
+    sendAT(GF("+CMGF=1"));
+    if(waitResponse() != 1) return false;
+    sendAT(GF("+CSDH=1"));
+    if(waitResponse() != 1) return false;
+    sendAT(GF("+CSCS=\"GSM\""));
+    if(waitResponse() != 1) return false;
+
+    sendAT(GF("+CMGL=\"ALL\""));
+
+    msg = "";
+    const unsigned long timeout = 10000L;
+    unsigned long startMillis = millis();
+    bool isTimeout = false;
+    String line;
+    do {
+      line = stream.readStringUntil('\n');
+      line.trim();
+      if ( line != ""  && line != "OK" ) {
+        msg = msg + line + String("\r\n");
+      }
+      isTimeout = (millis() - startMillis) > timeout;
+      delay(0);
+      if ( isTimeout ) {
+        DBG("timeout");
+        break;
+      }
+    } while (line != "OK");
+
+    return (line == "OK");
+  }
+
+  uint8_t readAllSMSIndex(uint8_t indexes[], byte size){
+    sendAT(GF("+CMGF=1"));
+    if(waitResponse() != 1) return -1;
+    sendAT(GF("+CSDH=1"));
+    if(waitResponse() != 1) return -1;
+    sendAT(GF("+CSCS=\"GSM\""));
+    if(waitResponse() != 1) return -1;
+
+    sendAT(GF("+CMGL=\"ALL\""));
+
+    uint8_t nn = 0;
+    uint8_t rez;
+    while(true) {
+      rez = waitResponse(GF(GSM_OK),GF(GSM_ERROR),GF("+CMGL:"));
+      // DBG("rez=",rez);
+      if(rez == 1)
+        break;
+      if(rez == 2)
+        return -1;
+      if(rez == 3) {
+        if(nn >= size) {
+          waitResponse();
+          break;
+        }
+        indexes[nn] = (uint8_t)stream.readStringUntil(',').toInt();
+        DBG("SMS:",indexes[nn]);
+        nn++;
+      }
+    }
+    return nn;
+  }
+
   bool sendSMS(const String& number, const String& text) {
     sendAT(GF("+CMGF=1"));
     waitResponse();
+    delay(200);
     sendAT(GF("+CMGS=\""), number, GF("\""));
-    if (waitResponse(GF(">")) != 1) {
+    delay(200);
+    int ii = waitResponse(GF(">"));
+    DBG("ii:",ii);
+    if (ii != 1) {
       return false;
     }
     stream.print(text);
     stream.write((char)0x1A);
     stream.flush();
-    return waitResponse(60000L) == 1;
+    ii = waitResponse(60000L);
+    delay(2000);
+    return ii == 1;
   }
 
 
@@ -583,6 +764,30 @@ public:
     }
     stream.readStringUntil(',');
     int res = stream.readStringUntil('\n').toInt();
+    waitResponse();
+    return res;
+  }
+
+  /*
+   * Clock functions
+   */
+
+  void syncNetworkTime(){
+    sendAT(GF("+COPS=2")); // de register
+    waitResponse();
+    sendAT(GF("+CLTS=1")); // automatic time zone update is enabled
+    waitResponse();
+    sendAT(GF("+COPS=0")); // register to network
+    waitResponse();
+  }
+
+  String getLocalTimestamp() {
+    sendAT(GF("+CCLK?"));
+    if (waitResponse(GF(GSM_NL "+CCLK:")) != 1) {
+      return "";
+    }
+
+    String res = stream.readStringUntil('\n');
     waitResponse();
     return res;
   }
@@ -644,12 +849,14 @@ public:
     streamWrite(tail...);
   }
 
-  bool streamSkipUntil(char c) { //TODO: timeout
-    while (true) {
+  bool streamSkipUntil(char c) {
+    const unsigned long timeout = 1000L;
+    unsigned long startMillis = millis();
+    do {
       while (!stream.available()) { TINY_GSM_YIELD(); }
       if (stream.read() == c)
         return true;
-    }
+    } while (millis() - startMillis < timeout);
     return false;
   }
 
@@ -658,7 +865,7 @@ public:
     streamWrite("AT", cmd..., GSM_NL);
     stream.flush();
     TINY_GSM_YIELD();
-    //DBG("### AT:", cmd...);
+    // DBG("### AT:", cmd...);
   }
 
   // TODO: Optimize this!

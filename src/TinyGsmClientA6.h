@@ -106,6 +106,14 @@ public:
     return write(&c, 1);
   }
 
+  virtual size_t print(const String &s) {
+    return write((const uint8_t *)s.c_str(), s.length());
+  }
+
+  virtual size_t print(const char str[]) {
+    return write((const uint8_t *)str,strlen(str));
+  }
+
   virtual int available() {
     TINY_GSM_YIELD();
     if (!rx.size() && sock_connected) {
@@ -194,18 +202,12 @@ public:
 
     sendAT(GF("+CMER=3,0,0,2"));
     waitResponse();
+  }
 
+  bool setSmsStorage() {
     // PREFERRED SMS STORAGE
-    int nn = 5;
-    while( nn-- ) {
-      sendAT(GF("+CPMS="), GF("\"SM\""), GF(","), GF("\"SM\""), GF(","), GF("\"SM\""));
-      delay(1000);
-      if(waitResponse() == 1) {
-        getSimStatus();
-        return true;
-      }
-    }
-    return false;
+    sendAT(GF("+CPMS=\"SM\",\"SM\",\"SM\""));
+    return waitResponse() == 1;
   }
 
   void setBaud(unsigned long baud) {
@@ -322,13 +324,8 @@ public:
     return res;
   }
 
-  SimStatus getSimStatus(unsigned long timeout = 10000L) {
-    for (unsigned long start = millis(); millis() - start < timeout; ) {
+  SimStatus getSimStatus() {
       sendAT(GF("+CPIN?"));
-      if (waitResponse(GF(GSM_NL "+CPIN:")) != 1) {
-        delay(1000);
-        continue;
-      }
       int status = waitResponse(GF("READY"), GF("SIM PIN"), GF("SIM PUK"));
       waitResponse();
       switch (status) {
@@ -337,7 +334,6 @@ public:
       case 1:  return SIM_READY;
       default: return SIM_ERROR;
       }
-    }
     return SIM_ERROR;
   }
 
@@ -402,7 +398,7 @@ public:
     gprsDisconnect();
 
     sendAT(GF("+CGATT=1"));
-    if (waitResponse(60000L) != 1)
+    if (waitResponse(30000L) != 1)
       return false;
 
     // TODO: wait AT+CGATT?
@@ -413,12 +409,12 @@ public:
     if (!user) user = "";
     if (!pwd)  pwd = "";
     sendAT(GF("+CSTT=\""), apn, GF("\",\""), user, GF("\",\""), pwd, GF("\""));
-    if (waitResponse(60000L) != 1) {
+    if (waitResponse(30000L) != 1) {
       return false;
     }
 
     sendAT(GF("+CGACT=1,1"));
-    waitResponse(60000L);
+    waitResponse(30000L);
 
     sendAT(GF("+CIPMUX=1"));
     if (waitResponse() != 1) {
@@ -718,7 +714,7 @@ public:
           break;
         }
         indexes[nn] = (uint8_t)stream.readStringUntil(',').toInt();
-        DBG("SMS:",indexes[nn]);
+        //DBG("SMS:",indexes[nn]);
         nn++;
       }
     }
@@ -732,7 +728,6 @@ public:
     sendAT(GF("+CMGS=\""), number, GF("\""));
     delay(200);
     int ii = waitResponse(GF(">"));
-    DBG("ii:",ii);
     if (ii != 1) {
       return false;
     }
@@ -740,7 +735,7 @@ public:
     stream.write((char)0x1A);
     stream.flush();
     ii = waitResponse(60000L);
-    delay(2000);
+    delay(1000);
     return ii == 1;
   }
 
@@ -750,6 +745,14 @@ public:
    */
 
   String getGsmLocation() TINY_GSM_ATTR_NOT_AVAILABLE;
+
+  // A7 only, 
+  // starts GPS NMEA stream on GPS_TXD pin of A7 at baud rate 9600
+  // https://gist.github.com/mixaz/98a4216665ebf9fe9d59e501ed480b64
+  bool enableGPS(bool enable) {
+    sendAT(GF("+GPS="), enable?1:0);
+    return waitResponse(5000) == 1;
+  }
 
   /*
    * Battery functions
@@ -821,7 +824,7 @@ protected:
     }
     stream.write((uint8_t*)buff, len);
     stream.flush();
-    if (waitResponse(10000L, GFP(GSM_OK), GF(GSM_NL "FAIL")) != 1) {
+    if (waitResponse(10000L, GFP(GSM_OK), GF(GSM_NL "FAIL"), GFP(GSM_ERROR)) != 1) {
       return -1;
     }
     return len;

@@ -398,7 +398,7 @@ public:
     gprsDisconnect();
 
     sendAT(GF("+CGATT=1"));
-    if (waitResponse(30000L) != 1)
+    if (waitResponse(20000L) != 1)
       return false;
 
     // TODO: wait AT+CGATT?
@@ -409,12 +409,12 @@ public:
     if (!user) user = "";
     if (!pwd)  pwd = "";
     sendAT(GF("+CSTT=\""), apn, GF("\",\""), user, GF("\",\""), pwd, GF("\""));
-    if (waitResponse(30000L) != 1) {
+    if (waitResponse(20000L) != 1) {
       return false;
     }
 
     sendAT(GF("+CGACT=1,1"));
-    waitResponse(30000L);
+    waitResponse(20000L);
 
     sendAT(GF("+CIPMUX=1"));
     if (waitResponse() != 1) {
@@ -734,7 +734,7 @@ public:
     stream.print(text);
     stream.write((char)0x1A);
     stream.flush();
-    ii = waitResponse(60000L);
+    ii = waitResponse(20000L);
     delay(1000);
     return ii == 1;
   }
@@ -800,12 +800,12 @@ protected:
   bool modemConnect(const char* host, uint16_t port, uint8_t* mux) {
     sendAT(GF("+CIPSTART="),  GF("\"TCP"), GF("\",\""), host, GF("\","), port);
 
-    if (waitResponse(75000L, GF(GSM_NL "+CIPNUM:")) != 1) {
+    if (waitResponse(20000L, GF(GSM_NL "+CIPNUM:")) != 1) {
       return false;
     }
     int newMux = stream.readStringUntil('\n').toInt();
 
-    int rsp = waitResponse(75000L,
+    int rsp = waitResponse(20000L,
                            GF("CONNECT OK" GSM_NL),
                            GF("CONNECT FAIL" GSM_NL),
                            GF("ALREADY CONNECT" GSM_NL));

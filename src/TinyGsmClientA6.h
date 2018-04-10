@@ -605,7 +605,7 @@ public:
     sendAT(GF("+CMGF=1"));
     if(waitResponse() != 1) return false;
 
-    sendAT(GF("+CMGDA=\"DEL ALL\""));
+    sendAT(GF("+CMGD=1,4"));
     if(waitResponse() != 1) return false;
 
     return true;
@@ -689,7 +689,7 @@ public:
     return (line == "OK");
   }
 
-  uint8_t readAllSMSIndex(uint8_t indexes[], byte size){
+  int8_t readAllSMSIndex(uint8_t indexes[], byte size){
     sendAT(GF("+CMGF=1"));
     if(waitResponse() != 1) return -1;
     sendAT(GF("+CSDH=1"));
